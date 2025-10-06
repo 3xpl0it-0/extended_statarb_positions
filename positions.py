@@ -2,13 +2,13 @@
 
 # import packages and data
 
-#from custom_data import df
+from custom_data import df
 
 import pandas as pd
 import math
 import numpy as np
 
-df = pd.read_csv("trade_data.csv")
+#df = pd.read_csv("trade_data.csv")
 
 # define constants
 RETURNS_LOOKBACK = 30
@@ -148,3 +148,4 @@ for index in pos_df["asset"].index:
     print(
         f"ticker: {pos_df['asset'].iloc[index]} | trade: {pos_df['trade_direction'].iloc[index]} | size: {pos_df['allocation'].iloc[index]} | adjusted size: {pos_df['allocation'].iloc[index] * 1 / total_allocation}"
     )
+
