@@ -2,13 +2,13 @@
 
 # import packages and data
 
-from custom_data import df
+#from custom_data import df
 
 import pandas as pd
 import math
 import numpy as np
 
-#df = pd.read_csv("trade_data.csv")
+df = pd.read_csv("trade_data.csv")
 
 # define constants
 RETURNS_LOOKBACK = 30
@@ -25,9 +25,6 @@ df["returns"] = df.groupby("asset")["close"].transform(lambda x: x.pct_change())
 
 # asset returns inclusive of funding
 df["returns_funding"] = df["returns"] - df["funding"]
-
-# next day asset returns inclusive of funding
-df["next_returns_funding"] = df.groupby("asset")["returns_funding"].shift(-1)
 
 # asset returns and funding volatility
 df["rolling_returns_funding_vol"] = (
@@ -67,11 +64,6 @@ df["returns_funding_volscaled"] = df["returns_funding"] * (
     TARGET_VOLATILITY / df["rolling_returns_funding_vol"]
 )
 
-# next day asset returns and funding scaled by volatility
-df["next_returns_funding_volscaled"] = df.groupby("asset")[
-    "returns_funding_volscaled"
-].shift(-1)
-
 # editing to remove final day and values that wont have complete data
 df = df[df.groupby("asset").cumcount() > 55].copy()
 df = df.groupby("asset").head(-1).copy()
@@ -79,7 +71,7 @@ df = df.groupby("asset").head(-1).copy()
 # check if missing values remaining
 nan_rows = df.isna().any(axis=1)
 rows_with_nan = df[nan_rows]
-print(rows_with_nan)
+print(f"rows with nan: {rows_with_nan}")
 
 corr_signals = [
     "funding_sig_1v15",
@@ -112,6 +104,8 @@ df["volume_decile"] = df.groupby("timestamp")["rolling_volume"].transform(
 df = df[df["volume_decile"] != 2].copy()
 
 trade_df = df.loc[df.groupby("asset")["timestamp"].idxmax()]
+last_day = trade_df["timestamp"].dt.normalize().max()
+trade_df = trade_df[trade_df["timestamp"].dt.normalize() == last_day].copy()
 
 pos_list = []
 
@@ -119,6 +113,9 @@ for ticker in trade_df["asset"].unique():
     if trade_df[trade_df["asset"] == ticker]["avgsignal_decile"].iloc[0] <= 3:
         pos_list.append(
             [
+                trade_df[trade_df["asset"] == ticker][
+                    "timestamp"
+                ].iloc[0],
                 ticker,
                 "long",
                 TARGET_VOLATILITY
@@ -131,6 +128,9 @@ for ticker in trade_df["asset"].unique():
     elif (5 <= trade_df[trade_df["asset"] == ticker]["avgsignal_decile"].iloc[0] <= 8):
         pos_list.append(
             [
+                trade_df[trade_df["asset"] == ticker][
+                    "timestamp"
+                ].iloc[0],
                 ticker,
                 "short",
                 TARGET_VOLATILITY
@@ -140,7 +140,7 @@ for ticker in trade_df["asset"].unique():
             ]
         )
 
-pos_df = pd.DataFrame(pos_list, columns=["asset", "trade_direction", "allocation"])
+pos_df = pd.DataFrame(pos_list, columns=["timestamp", "asset", "trade_direction", "allocation"])
 print(pos_df)
 total_allocation = len(pos_df["asset"])
 
